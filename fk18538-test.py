@@ -1,2 +1,2 @@
 print('Hello World')
-print('Group finance')
+print('Hello GitHub')
