@@ -1,13 +1,13 @@
 import numpy as np
 
 # Returns zero_crossings
-def macd_crossing(macd_signal, macd): # identifying where macd shows buy/sell signal
+def macd_crossing_finder(macd_signal, macd): # identifying where macd shows buy/sell signal
     macd_diff = macd_signal - macd
     zero_crossings = np.where(np.diff(np.sign(macd_diff)))[0]
     return zero_crossings
 
 # Returns action_index_dict
-def locate_action(zero_crossings, macd, macd_signal): # determines buy and sell positions
+def locate_action_from_cross(zero_crossings, macd, macd_signal): # determines buy and sell positions
     action_index_dict = {}
     for k in zero_crossings:
         if macd[k] > macd_signal[k]:

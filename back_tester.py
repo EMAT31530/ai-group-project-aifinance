@@ -8,11 +8,8 @@ import matplotlib.pyplot as plt
 # Returns ticker_DF (Ticker is another name for stock)
 def yfinance_data(ticker_symbol, start_date): # returns data frame of prices for given ticker
     ticker_data = yf.Ticker(ticker_symbol)
-
     today = datetime.datetime.today().isoformat()
-
     ticker_DF = ticker_data.history(perod='1d', start=start_date, end=today[:10])
-
     return ticker_DF
 
 
@@ -28,20 +25,15 @@ def macd_calc(close):  # returns the macd and macd signal as data frames for a t
 # Returns rsi
 def rsi_calc(close):  # assumed period of 14, returns dataframe for rsi.
     diff = close.diff(1).dropna()  # diff in one field(one day)
-
     # this preservers dimensions off diff values
     up_chg = 0 * diff
     down_chg = 0 * diff
-
     # up change is equal to the positive difference, otherwise equal to zero
     up_chg[diff > 0] = diff[diff > 0]
-
     # down change is equal to negative difference, otherwise equal to zero
     down_chg[diff < 0] = diff[diff < 0]
-
     up_chg_avg = up_chg.ewm(com=14 - 1, min_periods=14).mean()
     down_chg_avg = down_chg.ewm(com=14 - 1, min_periods=14).mean()
-
     rs = abs(up_chg_avg / down_chg_avg)
     rsi = 100 - 100 / (1 + rs)
     return rsi
