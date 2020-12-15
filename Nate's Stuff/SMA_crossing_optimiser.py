@@ -9,3 +9,7 @@ def get_train_test(ticker, start, end):
     train = close.iloc[:split].copy() #get our training data
     test = close.iloc[split:].copy() #get our test data
     return train, test
+
+
+train, test = get_train_test("AAPL", "2020-01-01", "2020-01-01")
+print(train.head())
