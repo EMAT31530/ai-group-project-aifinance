@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 from pylab import mpl, plt
 from datetime import date
-import mpld3
 import logging
+from sklearn.cluster import KMeans
 
 #Comment this line to avoid debugging messages
 logging.basicConfig(level=logging.DEBUG, format=' %(asctime)s - %(filename)s - %(message)s')
@@ -68,6 +68,15 @@ def plot_chart(df):
     ax_rsi.legend()
     plt.show()
 
+def plot_returns(df):
+    fig = plt.figure(figsize=(15, 9))
+    grid = plt.GridSpec(14, 8, hspace=0.2)
+    ax_closes = fig.add_subplot(grid[:-5, 0:])
+    ax_closes.xaxis_date()
+    ax_closes.plot(df['Adj Close'], label='Close Price')
+    ax_closes.plot(df['Position'], label='Position')
+    ax_closes.legend()
+
 def split_df(df):
     split = int(len(df) * 0.5) #the split will occur halfway through the data
     train = df.iloc[:split].copy() #get our training data
@@ -77,13 +86,22 @@ def split_df(df):
 def get_signals(df):
     df['SMAsig'] = np.where(df['SMAshort'] > df['SMAlong'], 1, 0)
     df['MACDsig'] = np.where(df['MACD'] > df['Signal'], 1, 0)
-    df['RSIsig'] = np.where(df['RSI'] < 30 and df['RSI'].shift(1) > 30, 1, 0)
+    RSI = list(df['RSI'])
+    RSIsigs = [0]
+    for i in range(1, len(df)):
+        if RSI[i] > 30 and RSI[i-1] < 30:
+            RSIsigs.append(1)
+        elif RSI[i] < 70 and RSI[i-1] > 70:
+            RSIsigs.append(0)
+        else:
+            RSIsigs.append(RSIsigs[i-1])
+    df['RSIsig'] = RSIsigs
     return df
 
 #START OF PROGRAM
 logging.debug('PROGRAM EXECUTION INITIATED')
-ShortPeriod = 10
-LongPeriod = 35
+ShortPeriod = 5
+LongPeriod = 20
 
 #Get some data
 data = get_price_data('AAPL', '2020-01-01', today)
@@ -92,7 +110,10 @@ data = add_MAs(data, ShortPeriod, LongPeriod)
 #Add MACD:
 data = add_MACD(data)
 #Add RSI:
-data = add_RSI(data).dropna()
+data = add_RSI(data)
+
+data['Returns'] = np.log(data['Adj Close'] / data['Adj Close'].shift(1))
+data = data.dropna()
 
 logging.debug(data)
 plot_chart(data)
@@ -103,6 +124,22 @@ logging.debug(train.tail())
 logging.debug(test.head())
 
 train = get_signals(train)
-logging.debug(train.tail())
+test = get_signals(test)
+logging.debug(train.head())
+
+#We must now set up the dataframe on which we will use K-Means clustering
+train2 = train[['SMAsig', 'MACDsig', 'RSIsig', 'Returns']]
+test2 = test[['SMAsig', 'MACDsig', 'RSIsig']]
+
+#Add a call column to train2
+train2['Call'] = np.where(train2['Returns'] >= 0, 1, 0)
+logging.debug(train2.tail())
+
+#Set our clusters up
+model = KMeans(n_clusters=2, random_state=0)
+#Fit the correct calls to the inputs
+model.fit(train2[['SMAsig', 'MACDsig', 'RSIsig']], train2['Call'])
+#Test this produces similar calls
+train2['call_predicts'] = model.predict(train2[['SMAsig', 'MACDsig', 'RSIsig']])
 
 logging.debug('PROGRAM TERMINATED')
