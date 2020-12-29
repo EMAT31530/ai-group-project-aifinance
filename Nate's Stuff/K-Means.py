@@ -83,34 +83,21 @@ def split_df(df):
     test = df.iloc[split:].copy() #get our test data
     return train, test
 
-def get_signals(df):
-    df['SMAsig'] = np.where(df['SMAshort'] > df['SMAlong'], 1, 0)
-    df['MACDsig'] = np.where(df['MACD'] > df['Signal'], 1, 0)
-    RSI = list(df['RSI'])
-    RSIsigs = [0]
-    for i in range(1, len(df)):
-        if RSI[i] > 30 and RSI[i-1] < 30:
-            RSIsigs.append(1)
-        elif RSI[i] < 70 and RSI[i-1] > 70:
-            RSIsigs.append(0)
-        else:
-            RSIsigs.append(RSIsigs[i-1])
-    df['RSIsig'] = RSIsigs
-    return df
-
 #START OF PROGRAM
 logging.debug('PROGRAM EXECUTION INITIATED')
 ShortPeriod = 5
 LongPeriod = 20
 
 #Get some data
-data = get_price_data('AAPL', '2020-01-01', today)
+data = get_price_data('AAPL', '2010-01-01', '2016-01-01')
 #Add moving Averages:
 data = add_MAs(data, ShortPeriod, LongPeriod)
 #Add MACD:
 data = add_MACD(data)
 #Add RSI:
 data = add_RSI(data)
+
+data['20perchange'] = np.log()
 
 data['Returns'] = np.log(data['Adj Close'] / data['Adj Close'].shift(1))
 data = data.dropna()
@@ -123,23 +110,25 @@ train, test = split_df(data)
 logging.debug(train.tail())
 logging.debug(test.head())
 
-train = get_signals(train)
-test = get_signals(test)
-logging.debug(train.head())
+# train = get_signals(train)
+# test = get_signals(test)
+# logging.debug(train.head())
+#
+# #We must now set up the dataframe on which we will use K-Means clustering
+# train2 = train[['SMAsig', 'MACDsig', 'RSIsig', 'Returns']]
+# test2 = test[['SMAsig', 'MACDsig', 'RSIsig']]
+#
+# #Add a call column to train2
+# train2['Call'] = np.where(train2['Returns'] >= 0, 1, 0)
+# logging.debug(train2.tail())
+#
+# #Set our clusters up
+# model = KMeans(n_clusters=2, random_state=0)
+# #Fit the correct calls to the inputs
+# model.fit(train2['SMAsig'], train2['Returns'])
+# #Test this produces similar calls
+# train2['pred_return'] = model.predict(train2[['SMAsig', 'MACDsig', 'RSIsig']])
 
-#We must now set up the dataframe on which we will use K-Means clustering
-train2 = train[['SMAsig', 'MACDsig', 'RSIsig', 'Returns']]
-test2 = test[['SMAsig', 'MACDsig', 'RSIsig']]
-
-#Add a call column to train2
-train2['Call'] = np.where(train2['Returns'] >= 0, 1, 0)
 logging.debug(train2.tail())
-
-#Set our clusters up
-model = KMeans(n_clusters=2, random_state=0)
-#Fit the correct calls to the inputs
-model.fit(train2[['SMAsig', 'MACDsig', 'RSIsig']], train2['Call'])
-#Test this produces similar calls
-train2['call_predicts'] = model.predict(train2[['SMAsig', 'MACDsig', 'RSIsig']])
 
 logging.debug('PROGRAM TERMINATED')
