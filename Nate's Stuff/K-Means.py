@@ -33,40 +33,61 @@ def add_MACD(df):
     return df
 
 def add_RSI(df, period=14):
-
+    dif = df['Adj Close'].diff()
+    UpDays = dif.copy()
+    UpDays[dif <= 0] = 0.0
+    DownDays = abs(dif.copy())
+    DownDays[dif > 0] = 0.0
+    RSUp = UpDays.rolling(period).mean()
+    RSDown = DownDays.rolling(period).mean()
+    rsi = 100-100/(1 + RSUp/RSDown)
+    df['RSI'] = rsi
     return df
+
+def plot_chart(df):
+
+    fig = plt.figure(figsize=(15, 9))
+    grid = plt.GridSpec(14, 8, hspace=0.2)
+
+    ax_closes = fig.add_subplot(grid[:-5, 0:])
+    ax_macd = fig.add_subplot(grid[-5:-3, 0:], sharex=ax_closes)
+    ax_rsi = fig.add_subplot(grid[-3:-1, 0:], sharex=ax_closes)
+
+    ax_closes.xaxis_date()
+
+    ax_closes.plot(df['Adj Close'], label='Close Price')
+    ax_closes.plot(df['SMAshort'], label='Short SMA')
+    ax_closes.plot(df['SMAlong'], label='Long SMA')
+    ax_closes.legend()
+
+    ax_macd.plot(df['MACD'], label='MACD')
+    ax_macd.plot(df['Signal'], label='Signal')
+    ax_macd.legend()
+
+    ax_rsi.set_ylabel("(%)")
+    ax_rsi.plot(df.index, [70]*len(df.index), label='Overbought')
+    ax_rsi.plot(df.index, [30]*len(df.index), label='Oversold')
+    ax_rsi.plot(df['RSI'], label='RSI')
+    ax_rsi.legend()
+
+    plt.show()
 
 #START OF PROGRAM
 logging.debug('PROGRAM EXECUTION INITIATED')
 ShortPeriod = 20
 LongPeriod = 50
 
-data = get_price_data('AAPL', '2020-01-10', today)
+data = get_price_data('AAPL', '2020-01-01', today)
+
 #Add moving Averages:
 data = add_MAs(data, ShortPeriod, LongPeriod)
 #Add MACD:
 data = add_MACD(data)
 #Add RSI:
-data = add_RSI(data)
+data = add_RSI(data).dropna()
 
-#Set up plotting grid
-fig = plt.figure(figsize=(15, 9))
-grid = plt.GridSpec(14, 8, hspace=0.2)
+logging.debug(data)
 
-#sort out main axis
-main_ax = fig.add_subplot(grid[:-3, 0:])
-main_ax.plot(data['Adj Close'], label='Price')
-main_ax.plot(data['SMAlong'], label='Long SMA')
-main_ax.plot(data['SMAshort'], label='Short SMA')
-
-#sort out MACD axis
-macd_ax = fig.add_subplot(grid[-3:-1, 0:], sharex=main_ax)
-macd_ax.plot(data['MACD'], label='MACD')
-macd_ax.plot(data['Signal'], label='Signal')
-plt.legend()
-
-#Disable logging before plot so we don't get silly information about fonts
-logging.disable(logging.DEBUG)
-plt.show()
+plot_chart(data)
 
 logging.debug('PROGRAM TERMINATED')
