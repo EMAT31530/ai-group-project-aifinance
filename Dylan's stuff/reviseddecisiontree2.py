@@ -124,25 +124,38 @@ def DecisionTree(ticker_symbol, start_date):
     rsivalues = rsi_calc(closes)
     DF['RSI'] = rsivalues.values[:,0]
 
-    #append OBV values to the dataframe
-    obv_calc(DF, labels)
 
     #use relevant functions to determine whether MACD indicates 'buy', 'sell' or neither on a given day
     macs, signals = macd_calc(closes)
     mac_signals = macd_signals(signals, macs)
     DF['MACD'] = mac_signals
+    
+    #append OBV values to the dataframe
+    obv_calc(DF, labels)
 
     #remove the first 14 days, as we don't have RSI values for these dates
     df = DF[14:]
     #remove the last day (today), as we don't yet have a label for this date
     last_row = len(df) - 1
     df = df.drop(df.index[last_row])
+    dates = df.index
 
     X = df.values[:, 6:9]
     Y = df.values[:, 5]
 
     #split data into train and test sets
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.25, random_state = 100)
+    test_size = int(round(len(df)*0.2))
+    train_size = len(df) - test_size
+
+    X_test = X[-test_size:]
+    X_train = X[:train_size]
+    Y_test = Y[-test_size:]
+    Y_train = Y[:train_size]
+
+    test_dates = dates[-test_size:]
+    train_dates = dates[:train_size]
+
+    
     #create our tree
     tree = DecisionTreeClassifier(criterion='entropy', random_state=100, max_depth=3, min_samples_leaf=5)
     tree.fit(X_train, Y_train);
@@ -152,6 +165,12 @@ def DecisionTree(ticker_symbol, start_date):
     model_accuracy = accuracy_score(Y_test, y_pred) * 100
 
     print("model_accuracy:", model_accuracy)
-    return y_pred
 
-DecisionTree("NKE", "2019-1-1");
+    Dict = {}
+
+    for i in range(len(y_pred)) :
+        Dict[str(test_dates[i].date())] = y_pred[i] 
+    
+    return Dict
+
+DecisionTree("NKE", "2018-1-1");
