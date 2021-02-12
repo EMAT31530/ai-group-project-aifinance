@@ -37,7 +37,5 @@ random_labels = []
 for i in range(len(test_labels)):
     random_labels.append(random.choice(random_signal))
 
-len(random_labels) == len(test_labels)
-
 random_model_accuracy = accuracy_score(test_labels, random_labels) * 100
 random_model_accuracy
