@@ -30,6 +30,18 @@ class Init_Pop:
         for i in range(pop_size):
             self.chromosomes.append(Chromosome(0, indicator_list))
 
+def best_trade(index, action, df2):
+    temp = df2.loc[index::]
+    current = temp.iloc[0]['Close']
+    temp = temp.iloc[1:15]['Close']
+    if action == 'buy':
+        max_close = temp.max()
+        percent_diff = (max_close - current) / current
+    else:
+        min_close = temp.min()
+        percent_diff = (current - min_close) / current
+    return percent_diff
+
 
 def fit_calc(pop, df2, action):
     for chromo in pop.chromosomes:
@@ -41,9 +53,9 @@ def fit_calc(pop, df2, action):
             df = df.loc[df2[chromo.genes_name[i]] == chromo.genes_val[i]]
         for index, row in df.iterrows():
             if action == 'buy':
-                total += row['roi']
+                total += best_trade(index, 'buy', df2)
             elif action == 'sell':
-                total -= row['roi']
+                total += best_trade(index, 'sell', df2)
             result_counter += 1
         if result_counter != 0:
             roi = total/result_counter
