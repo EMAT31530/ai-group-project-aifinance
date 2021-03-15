@@ -73,7 +73,7 @@ def create_bins(df, bins=[0]):
 def main():
 
     global lags
-    lags = 9
+    lags = 8
 
     # Get today's recent prices:
     df = get_today_prices('BTC-USD', '2021-03-10', '5m')
