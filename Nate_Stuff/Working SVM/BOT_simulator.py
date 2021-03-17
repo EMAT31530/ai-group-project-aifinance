@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import time
 from sklearn.svm import SVC
 import ta
+import openpyxl
 from colorama import Fore, Style
 
 class timestamp(object):
@@ -13,7 +14,7 @@ class timestamp(object):
         # Previous midnight datetime object
         midnight_today = datetime(int(now.strftime('%Y')), int(now.strftime('%m')), int(now.strftime('%d')), 0, 0, 0)
         # Start of the training data
-        self.start_day = str(midnight_today - timedelta(hours=2*24)).split(' ')[0]
+        self.start_day = str(midnight_today - timedelta(hours=24*20)).split(' ')[0]
 
 def get_recent_prices(ticker, start, freq):
     # Import here as its an API - will need to re-establish connection
@@ -37,7 +38,7 @@ def add_indicators(df):
     df['MACD Hist'] = ta.trend.MACD(df['Close'], window_slow=26, window_fast=12, window_sign=9).macd_diff()
     # df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi()
 
-def create_lags(df, feature_names, vision_len=8):
+def create_lags(df, feature_names, vision_len=7):
     global lag_feature_names
     lag_feature_names = []
 
@@ -57,37 +58,34 @@ def create_bins(df, lag_feature_names, bins=[0]):
         lag_bin_names.append(title)
         df[title] = np.digitize(df[col], bins=bins)
 
-def loop():
+def update_log(df):
+    pass
+
+@logger.catch
+def main():
     # Figure out what time it is
     timestamps = timestamp(datetime.now())
     # Get a recent df for training
     df = get_recent_prices('BTC-USD', timestamps.start_day, '5m')
-    print('\nTIME:        ', str(datetime.now()).split(' ')[1][:-7])
 
     # Adding indics here:
     heiken(df)
-    add_indicators(df)
+    #add_indicators(df)
 
     # We may also just want to use price history as a feature
     df['Ret'] = np.log(df['Close'] / df['Close'].shift(1))
     df.dropna(inplace=True)
 
     # Define a list of the features for the AI to look at
-    feature_names = ['Ret', 'HK Colour', 'MACD', 'MACD Sig', 'MACD Hist']
+    feature_names = ['Ret', 'HK Colour']
 
     # create lags so at each point the AI can see 'vision_len' back
     create_lags(df, feature_names)
     df.dropna(inplace=True)
-    #print(df[lag_feature_names])
 
     # convert every lag to binary variables
     create_bins(df, lag_feature_names)
     df.dropna(inplace=True)
-    #print(df[lag_bin_names].tail(50))
-
-    # Here we grab our final row to make the prediction from
-    df_final_row = df.copy()
-    df_final_row = df_final_row.tail(1)
 
     # Now for the prize - the correct decision
     df['Correct Call'] = np.sign(np.log(df['Close'].shift(-1) / df['Close']))
@@ -95,35 +93,43 @@ def loop():
     df['Correct Call'] = np.where(df['Correct Call'] == 1.0, 1, -1)
     df.dropna(inplace=True)
 
+    # split the df
+    df_train = df.iloc[:len(df)//2]
+    df_test = df.iloc[len(df)//2:]
+
     C = 1 # sets number of hyperplanes
 
-    # fit the model
-    mfit = SVC(C=C).fit(df[lag_bin_names], df['Correct Call'])
+    correct_count = 0
+    incorrect_count = 0
 
-    # use it to predict the final row:
-    df_final_row['Call'] = mfit.predict(df_final_row[lag_bin_names])
+    test_results = pd.DataFrame()
 
-    price_quote_color = np.where(df_final_row['Close'].iloc[-1] > df['Close'].iloc[-1], Fore.GREEN, Fore.RED)
-    call_color = np.where(df_final_row['Call'].iloc[-1] == 1, Fore.GREEN, Fore.RED)
-    call = np.where(df_final_row['Call'].iloc[-1] == 1, 'BUY', 'SELL')
+    for i in range(len(df_test)):
+        # fit the model
+        mfit = SVC(C=C).fit(df_train[lag_bin_names], df_train['Correct Call'])
 
-    print('PRICE:        ' + f'{price_quote_color}' + str(df_final_row['Close'].iloc[-1]) + f'{Style.RESET_ALL}')
-    print('CALL:         ' + f'{call_color}' + str(call) + f'{Style.RESET_ALL}')
+        # make a copy of the next row and delete the oldest row of the test data
+        next_row = df_test.copy().head(1)
+        df_test = df_test.iloc[1:]
 
-def main():
-    while 1:
-        time.sleep(1)
-        now = datetime.now()
-        now_min_end = int(now.strftime('%M')) % 10
-        now_sec = int(now.strftime('%S'))
+        # Add this next row to the training set and delete the oldest row
+        df_train = pd.concat([df_train, next_row.copy()])
+        df_train = df_train.iloc[1:]
 
-        if (now_min_end == 4 or now_min_end == 9) and now_sec == 50:
-            try:
-                start_time = datetime.now()
-                loop()
-                print('\nPROCESS TIME: ', datetime.now()-start_time, '\n')
-            except:
-                pass
+        # use it to predict the final row:
+        next_row['Call'] = mfit.predict(next_row[lag_bin_names])
+        test_results = pd.concat([test_results, next_row])
+
+        # Count if its right or wrong
+        if next_row['Call'].iloc[-1] == next_row['Correct Call'].iloc[-1]:
+            correct_count += 1
+        else:
+            incorrect_count += 1
+
+    print('Correct Calls:   ', correct_count)
+    print('Incorrect Calls: ', incorrect_count)
+
+    print('Win rate: ', np.round(100 * correct_count / (correct_count + incorrect_count)), '%')
 
 if __name__ == '__main__':
     main()
