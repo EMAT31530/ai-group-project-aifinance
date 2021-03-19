@@ -191,3 +191,29 @@ def bagging_method(Train_Data, Test_Data):
 Data = get_data('NKE', '2018-1-1')
 result = bagging_method(Data[0], Data[1])
 
+def random_forest(Train_Data, Test_Data):
+    """Arguments Train_Data & Test_Data are pandas dataframes, 
+    obtained using the get_data() function.
+    """
+    X_train = Train_Data.values[:, [0,1,2]]
+    Y_train = Train_Data.values[:,3]
+
+    X_test = Test_Data.values[:, [0,1,2]]
+    Y_test = Test_Data.values[:,3]
+
+    test_dates = Test_Data.index
+
+    #create and train our random forest
+    rf = RandomForestClassifier(n_estimators=100)
+    rf.fit(X_train, Y_train)
+    forest_predictions = rf.predict(X_test)
+    rf_accuracy= accuracy_score(Y_test, forest_predictions)*100
+    #create a dictionary of 'buy' 'sell' actions for each date in test set
+    Dict={}
+    for i in range(len(forest_predictions)):
+        Dict[str(test_dates[i].date())] = forest_predictions[i] 
+    
+    print("model_accuracy:",rf_accuracy)
+    return Dict
+
+Result = random_forest(Data[0], Data[1])
