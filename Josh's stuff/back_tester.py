@@ -23,8 +23,6 @@ def macd_calc(close):  # returns the macd and macd signal as data frames for a t
     macd = exp1 - exp2
     macd_signal = macd.ewm(span=9, adjust=False).mean()
     return macd, macd_signal
-
-
 # Returns rsi
 def rsi_calc(close):  # assumed period of 14, returns dataframe for rsi.
     diff = close.diff(1).dropna()  # diff in one field(one day)
@@ -39,14 +37,11 @@ def rsi_calc(close):  # assumed period of 14, returns dataframe for rsi.
     rs = abs(up_chg_avg / down_chg_avg)
     rsi = 100 - 100 / (1 + rs)
     return rsi
-
-
 # Returns a 50 day sma
 def short_sma(close):
     sma_period = 20
     fast_sma = close.rolling(window=sma_period).mean()
     return fast_sma
-
 # Returns a 100 day sma
 def long_sma(close):
     sma_period = 50
@@ -126,6 +121,7 @@ def profit_for_stock(ticker_symbol, start_date, budget, period): # calculates pr
     df = yfinance_data(ticker_symbol, start_date, period)
     close, indicator_list, headers = get_features(df)
     df2 = final_dataframe(close, indicator_list)
+    print(df2.head())
     # --------- Genetic Algorithm ------------------------------ #
     pop_size = 20
     it_num = 50
@@ -135,12 +131,12 @@ def profit_for_stock(ticker_symbol, start_date, budget, period): # calculates pr
     train_df = pd.concat(dfs)
     df2 = MLP_fit(df2, train_df)
     profit = profit_calc(budget, df2)
-    print_ga(pop_buy, pop_sell, pop_hold)
+    # print_ga(pop_buy, pop_sell, pop_hold)
     return profit
 
 
 ticker_symbol = 'NKE'
-start_date = '2005-1-1'  # 'year-month-day'
+start_date = '2015-1-1'  # 'year-month-day'
 budget = 1000
 period = '1d'  # Periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max intervals: 1m,2m,5m,15m,30m,60m,90m,1h
 
