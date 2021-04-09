@@ -55,7 +55,7 @@ def final_dataframe(close, indicator_list): # finds action points for stock
     # df2 = barrier_columns(df2)
     for indicator in indicator_list:
         df2[indicator.name] = indicator
-    df2 = roi_calc(df2, test_period)
+    # df2 = roi_calc(df2, test_period)
     df2 = df2.dropna()
 
     # for index, row in df2.iterrows():

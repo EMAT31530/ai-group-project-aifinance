@@ -26,7 +26,7 @@ def scaling_values(X_train, X_test):
 def MLP_fit(df2, train_df):
     y_train = train_df['action']  # Labels
     X_train = train_df.drop('action', axis=1)
-    X_test = df2.drop(['Close', 'roi'], axis=1)
+    X_test = df2.drop(['Close'], axis=1)
 
     # X_train, X_test, y_train, y_test = test_train_split(df2)
     # X_train, X_test = scaling_values(X_train, X_test)
