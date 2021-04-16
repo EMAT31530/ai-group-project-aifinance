@@ -159,10 +159,3 @@ for key in correct_action_list(locate_action(valid["Predictions"])):
 plt.plot(valid[["Close","Predictions"]])
 plt.legend(["Valid","Close","Predictions"],loc = "lower right")
 plt.show()
-
-
-df2 = correct_action_list(locate_action(valid["Predictions"]))
-our_profit = profit_calc(1000, df2, valid)
-
-max_profit_actions = correct_action_list(locate_action(valid["Close"]))
-max_profit = profit_calc(1000, df2, valid)
