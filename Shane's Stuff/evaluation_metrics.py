@@ -69,6 +69,9 @@ def max_profit(close_column,budget):
     actions =  correct_action_list(locate_action(close_column))
     return profit_calc(budget, actions, close_column)
 
+def allocative_efficiency(predictor_profit, max_profit):
+    return predictor_profit/max_profit * 100
+
 #Import the test data set and transform it into a NumPy array
 test_data = pd.read_csv('FB_test_data.csv')
 test_data = test_data.iloc[:, 1].values
