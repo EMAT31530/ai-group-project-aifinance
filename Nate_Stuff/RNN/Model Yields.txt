@@ -1,0 +1,25 @@
+BITCOIN KRAKEN
+
+v20_t5k_e20  : £ 687 gain, Win Trades 82.6 %
+v20_t10k_e20 : £ 686 gain, Win Trades 79.2 %
+
+v40_t10k_e20 : £ 131.56 loss, Win Trades 43.1 %
+
+v30_t10k_e10 : £ 656 gain, Win Trades 81.1 %
+v10_t10k_e10 : £ 256 gain, Win Trades 58.9 %
+v15_t10k_e10 : £ 738 gain, Win Trades 71.3 %
+v8_t10k_e10  : £ 164 gain, Win Trades 52.7 %
+v17_t10k_e10 : £ 610 gain, Win Trades 61.3 %
+v21_t10k_e10 : £ 613 gain, Win Trades 66.0 %
+v25_t10k_e10 : £ 619 gain, Win Trades 76.1 %
+
+v15_t10k_e20 : £ 766 gain, Win Trades 74.3 %
+v15_t10k_e30 : £ 736 gain, Win Trades 70.3 %
+
+v14_t10k_e20 : £ 963 gain, Win Trades 71.3 %
+v13_t10k_e20 : £ 980 gain, Win Trades 72.2 %
+v12_t10k_e20 : £ 1114 gain, Win Trades 77.4 %
+v11_t10k_e20 : £ 46 gain, Win Trades 48.1 %
+v6_t10k_e20 : £ 356 gain, Win Trades 52.6 %
+
+v24_t10k_e20 : £ 664 gain, Win Trades 72.7 %

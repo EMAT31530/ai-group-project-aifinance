@@ -46,10 +46,10 @@ def get_cc_minute_prices(coin, days=7):
 def get_cc_hour_prices(coin, calls=15):
     # This will return a list of dicts! Whoopyyyy
     call_stamps = [datetime.now() - timedelta(hours=1440 * i) for i in range(calls)]
-    df = pd.DataFrame(cc.get_historical_price_hour(coin, 'BUSD', exchange='Binance', toTs = call_stamps[0]))
+    df = pd.DataFrame(cc.get_historical_price_hour(coin, 'USD', exchange='Kraken', toTs = call_stamps[0]))
 
     for j in range(1, calls):
-        old_call = pd.DataFrame(cc.get_historical_price_hour(coin, 'BUSD', exchange='Binance', toTs = call_stamps[j]))
+        old_call = pd.DataFrame(cc.get_historical_price_hour(coin, 'USD', exchange='Kraken', toTs = call_stamps[j]))
         df = pd.concat([old_call, df])
 
     times = df['time'].tolist()
@@ -69,7 +69,7 @@ def create_lags(df, to_delay, features_list, vision_len=5):
             features_list.append(title)
             df[title] = df[feature].shift(lag)
 
-def get_train_test(df, test_size=.1):
+def get_train_test(df, test_size):
     # define variables to delay and a list of the features to use:
     features_list = []
 
@@ -83,11 +83,12 @@ def get_train_test(df, test_size=.1):
     df.dropna(inplace=True)
 
     # Define a point at which to split the data into training and testing
-    test_size = int(np.round(test_size * len(df)))
+    # test_size = int(np.round(test_size * len(df)))
 
     # Split into train and test
     training = df.copy().iloc[:-test_size]
     test = df.copy().iloc[-test_size+1:]
+    test.reset_index(drop=True, inplace=True)
 
     return training, test, features_list
 
@@ -146,7 +147,7 @@ def make_preds(rnn, x_test):
 def add_stats(preds_df, df, test_size, STRAT):
 
     # Define a point at which to split the data into training and testing
-    test_size = int(np.round(test_size * len(df)))
+    # test_size = int(np.round(test_size * len(df)))
 
     # Now we need to generate a DataFrame to assess the success of the method
     test = df.iloc[-test_size+1:]
@@ -162,6 +163,7 @@ def add_stats(preds_df, df, test_size, STRAT):
     preds_df['correct call'] = np.where(preds_df['close'] < preds_df['next close'], 'LONG', 'SHORT')
     preds_df['call'] = np.where(preds_df['prediction'] > preds_df['current'], 'LONG', 'SHORT')
 
+    preds_df['switch'] = np.where(preds_df['call'] != preds_df['call'].shift(-1), 'SWITCH', '-')
 
     preds_df['prize'] = preds_df['next close'] - preds_df['close']
     preds_df['prize perc'] = (preds_df['next close'] - preds_df['close']) / preds_df['close']
@@ -199,21 +201,50 @@ def summarise(preds_df, START_BAL):
     accuracy = np.round(correct_answers / len(correct_list) * 100)
 
     # Figure out the profit from passive investment
-    passive_prof = np.round(preds_df['hold balance'].iloc[-1] - START_BAL)
+    passive_prof = np.round(preds_df['hold balance'].iloc[-1] - START_BAL, 2)
+
+    switches = preds_df['switch'].tolist()
+    bal = preds_df['rnn balance'].tolist()
+    switch_positions = []
+    for i in range(len(switches)):
+        if switches[i] == 'SWITCH':
+            switch_positions.append(i)
+
+    bals_at_switch = []
+    for i in switch_positions:
+        bals_at_switch.append(bal[i])
+
+    bal_difs = [bals_at_switch[i] - bals_at_switch[i-1] for i in range(1, len(bals_at_switch))]
+
+    profitable_trade_count = 0
+    loss_trade_count = 0
+
+    for i in range(len(bal_difs)):
+        if bal_difs[i] > 0:
+            profitable_trade_count += 1
+        elif bal_difs[i] < 0:
+            loss_trade_count +=1
 
     print('Correct calls: ', correct_answers, '/', len(correct_list), '   Accuracy: ', accuracy, '%')
 
-    call_earnings = np.round(preds_df['rnn balance'].iloc[-1] - START_BAL)
+    call_earnings = np.round(preds_df['rnn balance'].iloc[-1] - START_BAL, 2)
 
-    print(preds_df[['current', 'prediction', 'correct call', 'call', 'hold balance', 'rnn balance']].head(60))
-    print('\n\n')
-    print(preds_df[['current', 'prediction', 'correct call', 'call', 'hold balance', 'rnn balance']].tail(60))
+    print(preds_df[['current', 'prediction', 'correct call', 'call', 'hold balance', 'rnn balance', 'switch']].head(60))
+    print('...')
+    print(preds_df[['current', 'prediction', 'correct call', 'call', 'hold balance', 'rnn balance', 'switch']].tail(60))
 
-    print('Passive earnings: £', passive_prof)
-    print('Bot earnings:     £', call_earnings)
+    print('\nOne month summary:')
 
-    print('Passive gain: ', np.round(((passive_prof+START_BAL) / START_BAL - 1) * 100), '%')
-    print('Bot gain:     ', np.round(((call_earnings+START_BAL) / START_BAL - 1) * 100), '%')
+    print('\nWinning trades:    ', profitable_trade_count)
+    print('Losing trades:     ', loss_trade_count)
+    winrate = np.round(profitable_trade_count / (profitable_trade_count + loss_trade_count), 3) * 100
+    print('\nWin rate:           ' + str(winrate)[:4] + '%')
+
+    print('\nPassive earnings:   £' + str(passive_prof))
+    print('Bot earnings:       £' + str(call_earnings))
+
+    print('\nPassive gain:       ' + str(np.round(((passive_prof+START_BAL) / START_BAL - 1), 3) * 100) + '%')
+    print('Bot gain:           ' + str(np.round(((call_earnings+START_BAL) / START_BAL - 1), 3) * 100) + '%')
 
 def plot_competition(preds_df, STRAT, RISK, START_BAL):
     # Plotting our bot performance
