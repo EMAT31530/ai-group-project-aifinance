@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas_datareader as pdr
 from sklearn.preprocessing import MinMaxScaler
+from utils import *
+
 
 def scale_list(l, to_min, to_max):
     def scale_number(unscaled, to_min, to_max, from_min, from_max):
@@ -33,9 +35,18 @@ def format_data(stock_data_column):
     stock_new =  list(stock_new.values)
     return stock_new
 
+def clean_predictions(predictions,threshold):
+    new_preds = {}
+    for i in range(0,len(predictions)):
+        if predictions[i] > threshold:
+            new_preds[i] = 1
+        else:
+            new_preds[i] = -1 
+    return new_preds
+    
  
 
-STOCKS = ['AAPL','MANU']
+STOCKS = ['AAPL']
 
 TIME_RANGE = 20
 PRICE_RANGE = 20
@@ -266,7 +277,6 @@ roc_auc = auc(fpr, tpr)
 print('AUC: %f' % roc_auc)
 from sklearn.metrics import roc_auc_score
  
-
 ####################################################################
 # Play around with thresholds to pick the best predictions
 ####################################################################
@@ -277,9 +287,16 @@ preds = predictions_cnn[:,1]
 from sklearn.metrics import accuracy_score
 print ('Accuracy on all data:', accuracy_score(actuals,[1 if x >= 0.5 else 0 for x in preds]))
  
-threshold = 0.75
+threshold = 0.5
 preds = predictions_cnn[:,1][predictions_cnn[:,1] >= threshold]
 actuals = y_valid_mod[:,1][predictions_cnn[:,1] >= threshold]
 from sklearn.metrics import accuracy_score
 print ('Accuracy on higher threshold:', accuracy_score(actuals,[1 if x > 0.5 else 0 for x in preds]))
 print('Returns:',len(actuals))
+
+
+##Simulate an investment 
+real_predictions = clean_predictions(predictions_cnn[:,1],0.5)
+stock_period = pdr.get_data_yahoo(stock, start="2019-01-01", end="2020-01-01")
+
+a = profit_calc(1000, correct_action_list(real_predictions),stock_period['Close'])
