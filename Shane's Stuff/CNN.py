@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas_datareader as pdr
+from sklearn.preprocessing import MinMaxScaler
 
 def scale_list(l, to_min, to_max):
     def scale_number(unscaled, to_min, to_max, from_min, from_max):
@@ -17,6 +18,21 @@ def scale_list(l, to_min, to_max):
         return [np.floor((to_max + to_min)/2)] * len(l)
     else:
         return [scale_number(i, to_min, to_max, min(l), max(l)) for i in l]
+
+def format_date(stock_data):
+    stock_data['Symbol'] = stock
+    stock_data['Date'] = stock_data.index
+    stock_data['Date'] = pd.to_datetime(stock_data['Date'], infer_datetime_format=True)
+    stock_data['Date'] = stock_data['Date'].dt.date
+    stock_data = stock_data.reset_index(drop=True)
+    return stock_data
+
+def format_data(stock_data_column):
+    stock_new = stock_data_column
+    stock_new = stock_new.fillna(method='bfill')  
+    stock_new =  list(stock_new.values)
+    return stock_new
+
  
 
 STOCKS = ['AAPL','MANU']
@@ -35,7 +51,10 @@ x_valid = None
 y_train = []
 y_valid = []
 
-
+# xgboost lists
+live_data_xgboost = []
+validation_data_xgboost = []
+train_data_xgboost = []
 
 for stock in STOCKS:
     print(stock)
@@ -46,20 +65,10 @@ for stock in STOCKS:
     # download dataframe
     stock_data = pdr.get_data_yahoo(stock, start="2016-01-01", end="2020-01-01")
 
-    stock_data['Symbol'] = stock
-    stock_data['Date'] = stock_data.index
-    stock_data['Date'] = pd.to_datetime(stock_data['Date'], infer_datetime_format=True)
-    stock_data['Date'] = stock_data['Date'].dt.date
-    stock_data = stock_data.reset_index(drop=True)
- 
-    
-    noise_ma_smoother = 1
-    stock_closes = stock_data['Close']
-    stock_closes = stock_closes.fillna(method='bfill')  
-    stock_closes =  list(stock_closes.values)
-    stock_opens = stock_data['Open']
-    stock_opens = stock_opens.fillna(method='bfill')  
-    stock_opens =  list(stock_opens.values)
+    stock_data = format_date(stock_data)
+
+    stock_closes = format_data(stock_data['Close'])  
+    stock_opens = format_data(stock_data['Close'])
     
     stock_dates = stock_data['Date'].values 
   
@@ -129,6 +138,7 @@ for stock in STOCKS:
                     x_live = np.vstack([x_live, [blank_matrix]])
                 live_symbols.append(stock)
 
+                live_data_xgboost.append(graph_close_ma + graph_close + graph_close_minus_open + [0])
 
             elif (stock_dates[cnt] >= VALIDTAION_CUTOFF_DATE):
                 # validation data
@@ -138,6 +148,8 @@ for stock in STOCKS:
                     x_valid = np.vstack([x_valid, [blank_matrix]])
                 y_valid.append(outcome)
 
+                validation_data_xgboost.append(graph_close_ma + graph_close + graph_close_minus_open + [outcome])
+
             else:
                 # training data
                 if x_train is None:
@@ -145,6 +157,10 @@ for stock in STOCKS:
                 else:
                     x_train = np.vstack([x_train, [blank_matrix]])
                 y_train.append(outcome)
+
+                train_data_xgboost.append(graph_close_ma + graph_close + graph_close_minus_open + [outcome])
+
+
 
 
 
