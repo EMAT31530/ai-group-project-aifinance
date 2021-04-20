@@ -62,10 +62,7 @@ x_valid = None
 y_train = []
 y_valid = []
 
-# xgboost lists
-live_data_xgboost = []
-validation_data_xgboost = []
-train_data_xgboost = []
+
 
 for stock in STOCKS:
     print(stock)
@@ -149,8 +146,6 @@ for stock in STOCKS:
                     x_live = np.vstack([x_live, [blank_matrix]])
                 live_symbols.append(stock)
 
-                live_data_xgboost.append(graph_close_ma + graph_close + graph_close_minus_open + [0])
-
             elif (stock_dates[cnt] >= VALIDTAION_CUTOFF_DATE):
                 # validation data
                 if x_valid is None:
@@ -159,8 +154,6 @@ for stock in STOCKS:
                     x_valid = np.vstack([x_valid, [blank_matrix]])
                 y_valid.append(outcome)
 
-                validation_data_xgboost.append(graph_close_ma + graph_close + graph_close_minus_open + [outcome])
-
             else:
                 # training data
                 if x_train is None:
@@ -168,8 +161,6 @@ for stock in STOCKS:
                 else:
                     x_train = np.vstack([x_train, [blank_matrix]])
                 y_train.append(outcome)
-
-                train_data_xgboost.append(graph_close_ma + graph_close + graph_close_minus_open + [outcome])
 
 
 
