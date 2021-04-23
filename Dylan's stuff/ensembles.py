@@ -217,3 +217,87 @@ def random_forest(Train_Data, Test_Data):
     return Dict
 
 Result = random_forest(Data[0], Data[1])
+
+
+def correct_actions(actions):
+    dates = list(actions.keys())
+    counter = 1
+    #iterate over each date, locating any consecutive 'buy' or 'sell' actions, and changing them to 'hold'
+    while counter <len(dates):
+        prev_date = dates[counter-1]
+        date = dates[counter]
+        if actions[date] == 'sell':
+            if actions[prev_date] == 'sell' or actions[prev_date]=='hold_sell':
+                actions[date] = 'hold_sell'
+        elif actions[date] == 'buy':
+            if actions[prev_date] =='buy' or actions[prev_date]=='hold_buy':
+                actions[date] = 'hold_buy'
+        counter+=1
+    
+    i = 0
+    while i<len(dates):
+        if actions[dates[i]] == 'hold_sell' or actions[dates[i]] == 'hold_buy':
+            actions[dates[i]] = 'hold'
+        i+=1
+    
+    #if the first action is 'sell', delete this action (we need to start with a 'buy')
+    if actions[dates[0]] == 'sell':
+        del actions[dates[0]]
+    return actions
+
+correct_actions = correct_actions(actions)
+print(correct_actions)
+
+
+def buy(holdings, Closes, date):
+    num_shares = holdings/Closes['Close'][date]
+    prev_act = 'buy'
+    return num_shares, prev_act
+
+def sell(num_shares, Closes, date):
+    holdings = num_shares * Closes['Close'][date]
+    prev_act = 'sell'
+    return holdings, prev_act
+
+def profit_calc(budget, correct_actions, Closes):
+    holdings = budget
+    old_holdings = budget
+    losses = 0
+    wins = 0
+    num_shares = 0
+    prev_act = 'sell'
+    dates = list(correct_actions.keys())
+    Assets = {}
+    i=0
+    while i<len(dates):
+        if correct_actions[dates[i]] == 'buy':
+            num_shares, prev_act = buy(holdings, Closes, dates[i])
+            asset_price = holdings
+            old_holdings = holdings
+            Assets[dates[i]] = asset_price
+            holdings = 0
+        elif correct_actions[dates[i]] == 'sell':
+            holdings, prev_act = sell(num_shares, Closes, dates[i])
+            if holdings < old_holdings:
+                losses += 1
+            elif holdings > old_holdings:
+                wins += 1
+            asset_price = holdings
+            Assets[dates[i]] = asset_price
+            num_shares = 0
+        elif correct_actions[dates[i]] == 'hold':
+            if prev_act == 'buy':
+                asset_price = num_shares * Closes['Close'][dates[i]]
+                Assets[dates[i]] = asset_price
+            elif prev_act == 'sell':
+                asset_price = holdings
+                Assets[dates[i]] = asset_price
+        i+=1
+    #print('Final Holdings:', asset_price)
+    #profit = asset_price-budget
+    #print('Profit:', profit)
+    #print(Assets)
+    print(f'Wins: {wins}')
+    print(f'Losses: {losses}')
+    return Assets
+
