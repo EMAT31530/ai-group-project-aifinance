@@ -1,4 +1,6 @@
 from josh_utils import *
+from keras.models import Sequential, load_model
+import keras
 
 
 class Trading(Env):
@@ -104,7 +106,7 @@ minibatch_size = 64
 update_target_every = 2
 model_name = '256x2'
 min_reward = -200 # for model save
-episodes = 20
+episodes = 2
 epsilon = 1
 epsilon_decay = 0.9999
 min_epsilon = 0.001
@@ -180,9 +182,18 @@ class DQNAgent:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
 
+    def save_model(self):
+        self.model.save("C:/Users/Joshg/PycharmProjects/pythonProject/ai-group-project-aifinance/Josh's stuff/"
+                        "reinforcement_models/first_model.h5")
+
+    def load_model(self, model_name):
+        self.model = keras.models.load_model("C:/Users/Joshg/PycharmProjects/pythonProject/ai-group-project-aifinance/"
+                                             "Josh's stuff/reinforcement_models/{}.h5".format(model_name))
+
 
 agent = DQNAgent()
-for episode in range(1, episodes):
+agent.load_model('first_model')
+for episode in range(1, episodes+1):
     start_time = datetime.datetime.now()
     episode_reward = 0
     step = 1
@@ -192,22 +203,15 @@ for episode in range(1, episodes):
 
     while not done:
         if np.random.random() > epsilon:
-            # start_time = datetime.datetime.now()
             action = np.argmax(agent.get_qs(current_state))
-            # print('Picking greedy action took {}.'.format(datetime.datetime.now() - start_time))
         else:
             rand_cntr += 1
             action = np.random.randint(0, env.action_space_size)
 
-        # start_time = datetime.datetime.now()
         new_state, reward, done, info = env.step(action)
-        # print('Completing a step took {}.'.format(datetime.datetime.now() - start_time))
         episode_reward += reward
-
         agent.update_replay_memory((current_state, action, reward, new_state, done))
-        # start_time = datetime.datetime.now()
         agent.train(done, step)
-
         current_state = new_state
         step += 1
 
@@ -222,3 +226,6 @@ for episode in range(1, episodes):
                                                                                     env.holds, env.dupe, epsilon,
                                                                                     rand_cntr))
     print('Episode took {}.'.format(datetime.datetime.now() - start_time))
+
+print('Saving agent')
+agent.save_model()
