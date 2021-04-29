@@ -10,16 +10,9 @@ import matplotlib.pyplot as plt
 import pandas_datareader as pdr
 from sklearn.preprocessing import MinMaxScaler
 from utils import *
+from PIL import Image
+import os, sys
 
-
-def scale_list(l, to_min, to_max):
-    def scale_number(unscaled, to_min, to_max, from_min, from_max):
-        return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
-
-    if len(set(l)) == 1:
-        return [np.floor((to_max + to_min)/2)] * len(l)
-    else:
-        return [scale_number(i, to_min, to_max, min(l), max(l)) for i in l]
 
 def format_date(stock_data):
     stock_data['Symbol'] = stock
@@ -28,29 +21,14 @@ def format_date(stock_data):
     stock_data['Date'] = stock_data['Date'].dt.date
     stock_data = stock_data.reset_index(drop=True)
     return stock_data
-
-def format_data(stock_data_column):
-    stock_new = stock_data_column
-    stock_new = stock_new.fillna(method='bfill')  
-    stock_new =  list(stock_new.values)
-    return stock_new
-
-def clean_predictions(predictions,threshold):
-    new_preds = {}
-    for i in range(0,len(predictions)):
-        if predictions[i] > threshold:
-            new_preds[i] = 1
-        else:
-            new_preds[i] = -1 
-    return new_preds
-    
  
 
-STOCKS = ['AAPL']
+STOCKS = ['TSLA']
 
-TIME_RANGE = 20
-PRICE_RANGE = 20
+TIME_RANGE = 30
+PRICE_RANGE = 30
 VALIDTAION_CUTOFF_DATE = datetime.date(2019, 1, 1)
+budget = 1000
 
 # split image horizontally into two sections - top and bottom sections
 half_scale_size = int(PRICE_RANGE/2)
@@ -72,6 +50,10 @@ for stock in STOCKS:
 
     # download dataframe
     stock_data = pdr.get_data_yahoo(stock, start="2016-01-01", end="2020-01-01")
+    
+    #Indicators
+    rsi = rsi_calc(stock_data['Close']).fillna(method='bfill')
+    macd, macd_signal = macd_calc(stock_data['Close'])[0].fillna(method='bfill'), macd_calc(stock_data['Close'])[1].fillna(method='bfill')
 
     stock_data = format_date(stock_data)
 
@@ -79,26 +61,23 @@ for stock in STOCKS:
     stock_opens = format_data(stock_data['Close'])
     
     stock_dates = stock_data['Date'].values 
-  
-    close_minus_open = list(np.array(stock_closes) - np.array(stock_opens))
-
-    # lets add a rolling average as an overlay indicator - back fill the missing
-    # first five values with the first available avg price
-    longer_ma_smoother = 6
-    stock_closes_rolling_avg = pd.Series(stock_data['Close']).rolling(window=longer_ma_smoother).mean() 
-    stock_closes_rolling_avg = stock_closes_rolling_avg.fillna(method='bfill')  
-    stock_closes_rolling_avg =  list(stock_closes_rolling_avg.values)
 
     for cnt in range(4, len(stock_closes)):
         if (cnt % 500 == 0): print(cnt)
 
         if (cnt >= TIME_RANGE):
-            # start making images
-            graph_open = list(np.round(scale_list(stock_opens[cnt-TIME_RANGE:cnt], 0, half_scale_size-1),0))
-            graph_close_minus_open = list(np.round(scale_list(close_minus_open[cnt-TIME_RANGE:cnt], 0, half_scale_size-1),0))
-            # scale both close and close MA toeghertogether
+
+            #Indicators
+            graph_rsi = list(np.round(scale_list(rsi[cnt-TIME_RANGE:cnt], 0, half_scale_size-1),0))
+            graph_macd = list(np.round(scale_list(macd[cnt-TIME_RANGE:cnt], 0, half_scale_size-1),0))
+            graph_macd_signal = list(np.round(scale_list(macd_signal[cnt-TIME_RANGE:cnt], 0, half_scale_size-1),0))
+            
+            
+           # scale both close and close MA toeghertogether
             close_data_together = list(np.round(scale_list(list(stock_closes[cnt-TIME_RANGE:cnt]) + 
                 list(stock_closes_rolling_avg[cnt-TIME_RANGE:cnt]), 0, half_scale_size-1),0))
+            
+            
             graph_close = close_data_together[0:PRICE_RANGE]
             graph_close_ma = close_data_together[PRICE_RANGE:] 
 
@@ -117,26 +96,31 @@ for stock in STOCKS:
 
             # flip x scale dollars so high number is atop, low number at bottom - cosmetic, humans only
             blank_matrix_close = blank_matrix_close[::-1]
-
+            
+            
             # store image data into matrix DATA_SIZE*DATA_SIZE
             blank_matrix_diff = np.zeros(shape=(half_scale_size, TIME_RANGE))
             x_ind = 0
-            for v in graph_close_minus_open:
-                blank_matrix_diff[int(v), x_ind] = 3  
+            for v,d,e in zip(graph_rsi,graph_macd,graph_macd_signal):
+                blank_matrix_diff[int(v), x_ind] = 3
+                blank_matrix_diff[int(d),x_ind] = 4
+                blank_matrix_diff[int(e),x_ind] = 5
                 x_ind += 1
             # flip x scale so high number is atop, low number at bottom - cosmetic, humans only
             blank_matrix_diff = blank_matrix_diff[::-1]
 
             blank_matrix = np.vstack([blank_matrix_close, blank_matrix_diff]) 
-
-            if 1==2:
+            
+            if cnt==500:
                 # graphed on matrix
                 plt.imshow(blank_matrix)
                 plt.show()
-
                 # straight timeseries 
                 plt.plot(graph_close, color='black')
                 plt.show()
+
+            
+
 
             if (outcome == None):
                 # live data
@@ -290,4 +274,4 @@ print('Returns:',len(actuals))
 real_predictions = clean_predictions(predictions_cnn[:,1],0.5)
 stock_period = pdr.get_data_yahoo(stock, start="2019-01-01", end="2020-01-01")
 
-a = profit_calc(1000, correct_action_list(real_predictions),stock_period['Close'])
+a = profit_calc(budget, correct_action_list(real_predictions),stock_period['Close'])
