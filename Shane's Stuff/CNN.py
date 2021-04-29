@@ -9,8 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas_datareader as pdr
 from sklearn.preprocessing import MinMaxScaler
-from utils import *
-from PIL import Image
+from useful_functions import *
 import os, sys
 
 
