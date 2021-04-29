@@ -25,8 +25,8 @@ cc.cryptocompare._set_api_key_parameter(KEY)
 @logger.catch
 def main():
 
-    VISION = 12
-    epoch_no = 20
+    VISION = 20
+    epoch_no = 7
     # based on the assumption it is sensible to retrain AI every month
     test_size = 732
 
@@ -34,8 +34,9 @@ def main():
     # df = get_cc_hour_prices('BTC', 5)
 
     df = pd.read_csv('kraken_btc_usd_hour.csv')
-    train_size = 10000 # set the number of hours we want to train the AI on
-    df = df[-train_size-test_size:]
+    offset = 1 * 732  # Use this to rewind an extra month
+    train_size = 8766 # set the number of hours we want to train the AI on
+    df = df[-train_size-test_size-offset:-offset]
     df.reset_index(drop=True, inplace=True)
 
     # Split to training and test data
@@ -52,16 +53,16 @@ def main():
     # # TRAINING
     # rnn.fit(x_training, y_training, epochs = epoch_no)
     # # Save rnn
-    # model_name = 'v' + str(VISION) + '_t10k_e' + str(epoch_no)
+    # model_name = 'v' + str(VISION) + '_t1y_e' + str(epoch_no) + 'March2020'
     # rnn.save('models/' + model_name)
 
-    rnn = tf.keras.models.load_model('models/v' + str(VISION) + '_t10k_e' + str(epoch_no))
+    rnn = tf.keras.models.load_model('models/v' + str(VISION) + '_t1y_e' + str(epoch_no) + 'February2021')
 
     # Generating our predicted values
     preds_df = make_preds(rnn, x_test)
 
     # STRAT = 0 : buy-side investment, STRAT = -1 means shorting as well
-    STRAT = 0
+    STRAT = -1
     # Risk is the proportion of account balance to risk in a single trade
     RISK = .9
     # Start balance is the amount in each account before investing
