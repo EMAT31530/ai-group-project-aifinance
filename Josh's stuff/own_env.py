@@ -105,7 +105,7 @@ min_replay_memory_size = 1000
 minibatch_size = 64
 update_target_every = 2
 model_name = '256x2'
-min_reward = -200 # for model save
+min_reward = -200  # for model save
 episodes = 2
 epsilon = 1
 epsilon_decay = 0.9999
@@ -182,9 +182,9 @@ class DQNAgent:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
 
-    def save_model(self):
+    def save_model(self, model_name):
         self.model.save("C:/Users/Joshg/PycharmProjects/pythonProject/ai-group-project-aifinance/Josh's stuff/"
-                        "reinforcement_models/first_model.h5")
+                        "reinforcement_models/{}.h5".format(model_name))
 
     def load_model(self, model_name):
         self.model = keras.models.load_model("C:/Users/Joshg/PycharmProjects/pythonProject/ai-group-project-aifinance/"
@@ -192,7 +192,6 @@ class DQNAgent:
 
 
 agent = DQNAgent()
-agent.load_model('first_model')
 for episode in range(1, episodes+1):
     start_time = datetime.datetime.now()
     episode_reward = 0
@@ -228,4 +227,4 @@ for episode in range(1, episodes+1):
     print('Episode took {}.'.format(datetime.datetime.now() - start_time))
 
 print('Saving agent')
-agent.save_model()
+agent.save_model('first_model')
