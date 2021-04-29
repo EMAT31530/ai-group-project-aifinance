@@ -20,11 +20,11 @@ from build_data import*
     
 TIME_RANGE = 30
 PRICE_RANGE = 30
-VALIDTAION_CUTOFF_DATE = datetime.date(2019, 1, 1)
-STOCKS = ['EURUSD=X']
+VALIDTAION_CUTOFF_DATE = datetime.date(2019, 4, 21)
+STOCKS = ['GBPUSD=X']
 batch_size = 1000
 num_classes = 2
-epochs = 30
+epochs = 10
 budget = 1000
 
 
@@ -58,7 +58,8 @@ model.add(Dense(50, activation='relu'))
 model.add(Dense(num_classes, activation='softmax'))
 
 # Compile model
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+opt = keras.optimizers.SGD(lr=0.01, nesterov=True)
+model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 model.summary()
 
 
@@ -137,6 +138,8 @@ print('Returns:',len(actuals))
 
 ##Simulate an investment 
 real_predictions = clean_predictions(predictions_cnn[:,1],0.5)
-stock_period = yf.download(STOCKS[0], start="2019-01-01", end="2020-01-01")
+print(len(real_predictions))
+stock_period = yf.download(STOCKS[0], start="2019-01-01", end="2021-01-01")
+print(len(stock_period['Close']))
 
 a = profit_calc(budget, correct_action_list(real_predictions),stock_period['Close'])
