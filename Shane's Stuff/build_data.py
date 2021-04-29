@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas_datareader as pdr
 from sklearn.preprocessing import MinMaxScaler
-from utils import *
+from useful_functions import *
 import os, sys
 import yfinance as yf
 
@@ -43,7 +43,7 @@ def build_data(STOCKS,TIME_RANGE,PRICE_RANGE,VALIDTAION_CUTOFF_DATE):
         # stock_data = pdr.get_data_google(stock)
     
         # download dataframe
-        stock_data = yf.download(stock, start="2016-01-01", end="2020-01-01")
+        stock_data = yf.download(stock, start="2004-01-01", end="2021-01-01")
         
         #Indicators
         rsi = rsi_calc(stock_data['Close']).fillna(method='bfill')
