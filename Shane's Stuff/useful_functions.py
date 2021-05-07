@@ -59,10 +59,13 @@ def profit_calc(budget, action_dict,close_column):  # calculates profit using ac
             profit, prev_act, loss_counter, sell_counter = sell(profit, loss_counter, close_column, key, num_shares, sell_counter)
         elif action_dict[key] == 1 and prev_act != 1:
             num_shares, prev_act = buy(profit, close_column, num_shares,key)
+    nb_shares = budget/ close_column[0]
+    passive_income = nb_shares*close_column[-1] - budget
     profit -= budget
     print('The algorithm made a loss ' + str(loss_counter) + ' times.')
     print('The algorithm sold stock ' + str(sell_counter) + ' times.')
     print('The algorithm made a profit of ' + str(profit))
+    print('Passive income profit would have been ' + str(passive_income))
     return profit
 
 def max_profit(close_column,budget):
@@ -72,9 +75,59 @@ def max_profit(close_column,budget):
 def allocative_efficiency(predictor_profit, max_profit):
     return predictor_profit/max_profit * 100
 
-#Import the test data set and transform it into a NumPy array
-test_data = pd.read_csv('FB_test_data.csv')
-test_data = test_data.iloc[:, 1].values
+#returns RSI values for each date, as a dataframe
+def rsi_calc(close):
+    #calculate difference in close price in 1 day
+    diff = close.diff(1)
+    
+    # this preserves dimensions of diff values
+    up_chg = 0 * diff
+    down_chg = 0 * diff
+
+    # up change is equal to the positive difference, otherwise equal to zero
+    up_chg[diff > 0] = diff[diff > 0]
+
+    # down change is equal to negative difference, otherwise equal to zero
+    down_chg[diff < 0] = diff[diff < 0]
+
+    up_chg_avg = up_chg.ewm(com=14 - 1, min_periods=14).mean()
+    down_chg_avg = down_chg.ewm(com=14 - 1, min_periods=14).mean()
+
+    rs = abs(up_chg_avg / down_chg_avg)
+    rsi = 100 - 100 / (1 + rs)
+    return rsi
+
+# returns the macd and macd signal as data frames for a ticker
+def macd_calc(close):  
+    exp1 = close.ewm(span=12, adjust=False).mean()
+    exp2 = close.ewm(span=26, adjust=False).mean()
+    macd = exp1 - exp2
+    macd_signal = macd.ewm(span=9, adjust=False).mean()
+    return macd, macd_signal
 
 
-maximum_profit =  max_profit(test_data,1000)
+def scale_list(l, to_min, to_max):
+    def scale_number(unscaled, to_min, to_max, from_min, from_max):
+        return (to_max-to_min)*(unscaled-from_min)/(from_max-from_min)+to_min
+
+    if len(set(l)) == 1:
+        return [np.floor((to_max + to_min)/2)] * len(l)
+    else:
+        return [scale_number(i, to_min, to_max, min(l), max(l)) for i in l]
+
+
+def format_data(stock_data_column):
+    stock_new = stock_data_column
+    stock_new = stock_new.fillna(method='bfill')  
+    stock_new =  list(stock_new.values)
+    return stock_new
+
+def clean_predictions(predictions,threshold):
+    new_preds = {}
+    for i in range(0,len(predictions)):
+        if predictions[i] > threshold:
+            new_preds[i] = 1
+        else:
+            new_preds[i] = -1 
+    return new_preds
+    
