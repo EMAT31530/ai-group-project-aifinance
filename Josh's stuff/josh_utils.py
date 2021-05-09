@@ -126,7 +126,7 @@ class Trading_3_action(Env):
 
 
 class Trading_2_action(Env):
-    def __init__(self, df, lookback_win=5, initial_balance=1000):
+    def __init__(self, df, lookback_win=30, initial_balance=1000):
         self.df = df.dropna().reset_index()
         self.df = self.df.drop(['index'], axis=1)
         self.lookback_win = lookback_win
@@ -240,11 +240,12 @@ class Trading_2_action(Env):
 
 
 class Trading_2_action_simple(Env):
-    def __init__(self, df, lookback_win=5, initial_balance=1000):
+    def __init__(self, df, lookback_win=30, initial_balance=1000):
         self.df = df.dropna().reset_index()
         self.df = self.df.drop(['index'], axis=1)
         self.lookback_win = lookback_win
         self.current_step = self.lookback_win  # Initial point
+        self.current_price = self.df.loc[self.current_step, 'Close']
         self.state = self.df.iloc[
                      self.current_step - self.lookback_win: self.current_step]  # State is a selection of 10 points
         self.end_step = len(self.df) - self.lookback_win
@@ -272,6 +273,7 @@ class Trading_2_action_simple(Env):
         self.state = self.df.iloc[
                      self.current_step - self.lookback_win: self.current_step]  # State is a selection of 10 points
         self.end_step = len(self.df) - self.lookback_win
+        self.current_price = self.df.loc[self.current_step, 'Close']
         self.balance = 0
         self.stock_held = self.initial_balance / self.df.loc[self.current_step, 'Close']
         self.net_worth = self.initial_balance
@@ -290,40 +292,42 @@ class Trading_2_action_simple(Env):
         return self.state
 
     def step(self, action):
-        self.current_step += 1
-        self.state = self.df.iloc[self.current_step - self.lookback_win: self.current_step]
-        current_price = self.df.loc[self.current_step, 'Close']
-
-        reward = self.net_worth - self.prev_net_worth  # Removes warning
-        self.prev_net_worth = self.net_worth
-
         if action == 0 and self.last_a != 0:  # BUY (switching position)
             self.buys += 1
-            self.balance = self.stock_held * (2 * self.last_price - current_price)
-            self.stock_held = self.balance / current_price
+            self.balance = self.stock_held * (2 * self.last_price - self.current_price)
+            self.stock_held = self.balance / self.current_price
             self.balance = 0
-            self.net_worth = self.balance + self.stock_held * current_price
-            self.last_price = current_price
+            self.last_price = self.current_price
             self.last_a = 0  # change last action to a long
             self.step_list_l.append(self.current_step)
-            self.price_list_l.append(current_price)
+            self.price_list_l.append(self.current_price)
 
         elif action == 1 and self.last_a != 1:  # SELL (switching position)
             self.sells += 1
             self.balance = 0
-            self.net_worth = self.balance + self.stock_held * (2 * self.last_price - current_price)
-            self.last_price = current_price
+            self.last_price = self.current_price
             self.last_a = 1  # change last action to a short
             self.step_list_s.append(self.current_step)
-            self.price_list_s.append(current_price)
+            self.price_list_s.append(self.current_price)
 
         elif action == 0:  # BUY (holding position)
-            self.net_worth = self.balance + self.stock_held * current_price
             self.buy_dupe += 1
 
         elif action == 1:  # SELL (holding position)
-            self.net_worth = self.balance + self.stock_held * (2 * self.last_price - current_price)
             self.sell_dupe += 1
+
+        self.current_step += 1
+        self.state = self.df.iloc[self.current_step - self.lookback_win: self.current_step]
+        self.current_price = self.df.loc[self.current_step, 'Close']
+
+        if action == 0:  # BUY (holding position)
+            self.net_worth = self.balance + self.stock_held * self.current_price
+
+        elif action == 1:  # SELL (holding position)
+            self.net_worth = self.balance + self.stock_held * (2 * self.last_price - self.current_price)
+
+        reward = self.net_worth - self.prev_net_worth  # Removes warning
+        self.prev_net_worth = self.net_worth
 
         if self.current_step >= self.end_step:  # Check if shower is done
             done = True

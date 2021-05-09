@@ -11,7 +11,7 @@ import tensorflow as tf
 
 
 class DQNAgent:
-    def __init__(self):
+    def __init__(self, env):
         # Main model (gets trained every step)
         self.model = self.create_model()
 
@@ -22,13 +22,16 @@ class DQNAgent:
         self.replay_memory = deque(maxlen=replay_memory_size)
         self.target_update_counter = 0
 
+        self.action_space = env.action_space_size
+        self.epsilon = 1
+
         # self.time_dict = {'current_states': 0, 'new_current_states': 0, 'fit': 0}
 
     def create_model(self):
         model = Sequential()
-        model.add(Dense(50, input_shape=env.state_size))
+        model.add(Dense(256, input_shape=env.state_size))
         model.add(Dropout(0.2))
-        model.add(Dense(50))
+        model.add(Dense(256))
         model.add(Dropout(0.2))
         model.add(Flatten())
         model.add(Dense(env.action_space_size, activation='linear'))
@@ -41,6 +44,18 @@ class DQNAgent:
 
     def get_qs(self, state):
         return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]  # Add divide by max (scale results)
+
+    def act(self, current_state):
+        if np.random.random() > self.epsilon:
+            action = np.argmax(agent.get_qs(current_state))
+        else:
+            action = np.random.randint(0, self.action_space)
+
+        # Decay Epsilon
+        if self.epsilon > min_epsilon:
+            self.epsilon *= epsilon_decay
+            self.epsilon = max(min_epsilon, self.epsilon)
+        return action
 
     def train(self, terminal_state):
         if len(self.replay_memory) < min_replay_memory_size:
@@ -107,8 +122,8 @@ actions = env.action_space.n
 # Making my own agent #
 discount = 0.99
 replay_memory_size = 150
-min_replay_memory_size = 50
-minibatch_size = 30
+min_replay_memory_size = 100
+minibatch_size = 32
 update_target_every = 10
 model_name = '256x2'
 min_reward = -200  # for model save
@@ -119,21 +134,16 @@ min_epsilon = 0.001
 SHOW_EVERY = 5
 reward_arr = []
 
-agent = DQNAgent()
+agent = DQNAgent(env)
 for episode in range(1, episodes+1):
     ep_start_time = datetime.datetime.now()
     step = 1
     current_state = env.reset()
-    rand_cntr = 0
     done = False
     temp_reward_tot = 0
 
     while not done:
-        if np.random.random() > epsilon:
-            action = np.argmax(agent.get_qs(current_state))
-        else:
-            rand_cntr += 1
-            action = np.random.randint(0, env.action_space_size)
+        action = agent.act(current_state)
 
         new_state, reward, done, info = env.step(action)
         agent.update_replay_memory((current_state, action, reward, new_state, done))
@@ -142,26 +152,22 @@ for episode in range(1, episodes+1):
         current_state = new_state
         step += 1
 
-        # Decay epsilon
-        if epsilon > min_epsilon:
-            epsilon *= epsilon_decay
-            epsilon = max(min_epsilon, epsilon)
     reward_arr.append(temp_reward_tot)
     if episode % SHOW_EVERY == 0:
         if env.action_space_size == 3:
-            print('Episode:{} Net_worth:{} Buys:{} Sells:{} Holds:{} Duplicates:{} Epsilon:{} Random:{}'.format(episode,
+            print('Episode:{} Net_worth:{} Buys:{} Sells:{} Holds:{} Duplicates:{} Epsilon:{}'.format(episode,
                                                                                     env.net_worth, env.buys, env.sells,
                                                                                     env.holds, env.dupe, epsilon,
-                                                                                    rand_cntr))
+                                                                                    ))
         else:
-            print('Episode:{} Net_worth:{} Buys:{} Sells:{} Buy Dupe:{} Sell Dupe:{} Epsilon:{} Random:{}'.format(episode,
+            print('Episode:{} Net_worth:{} Buys:{} Sells:{} Buy Dupe:{} Sell Dupe:{} Epsilon:{}'.format(episode,
                                                                                                                 env.net_worth,
                                                                                                                 env.buys,
                                                                                                                 env.sells,
                                                                                                                 env.buy_dupe,
                                                                                                                 env.sell_dupe,
                                                                                                                 epsilon,
-                                                                                                                rand_cntr))
+                                                                                                                ))
     print('Episode {} took {}.'.format(episode, datetime.datetime.now() - ep_start_time))
 
 agent.render(reward_arr)
