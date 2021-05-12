@@ -60,13 +60,13 @@ def profit_calc(budget, action_dict,close_column):  # calculates profit using ac
         elif action_dict[key] == 1 and prev_act != 1:
             num_shares, prev_act = buy(profit, close_column, num_shares,key)
     nb_shares = budget/ close_column[0]
-    passive_income = nb_shares*close_column[-1] - budget
+    passive_profit = nb_shares*close_column[-1] - budget
     profit -= budget
-    print('The algorithm made a loss ' + str(loss_counter) + ' times.')
-    print('The algorithm sold stock ' + str(sell_counter) + ' times.')
-    print('The algorithm made a profit of ' + str(profit))
-    print('Passive income profit would have been ' + str(passive_income))
-    return profit
+    #print('The algorithm made a loss ' + str(loss_counter) + ' times.')
+    #print('The algorithm sold stock ' + str(sell_counter) + ' times.')
+    #print('The algorithm made a profit of ' + str(profit))
+    #print('Passive profit would have been ' + str(passive_profit))
+    return profit,passive_profit
 
 def max_profit(close_column,budget):
     actions =  correct_action_list(locate_action(close_column))
@@ -130,4 +130,3 @@ def clean_predictions(predictions,threshold):
         else:
             new_preds[i] = -1 
     return new_preds
-    
