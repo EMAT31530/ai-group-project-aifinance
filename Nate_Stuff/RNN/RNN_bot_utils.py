@@ -15,7 +15,7 @@ from sklearn.preprocessing import MinMaxScaler
 # ###############  RNN stuff:  ########################################
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import LSTM
+from tensorflow.keras.layers import LSTM, GRU
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.utils import to_categorical
 
@@ -119,22 +119,29 @@ def numpy_ify(training, test, features_list):
     x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
     return x_training, x_test, y_training, y_test
 
-def make_rnn(x_training):
+def make_rnn(x_training, mem_layer=LSTM):
+
+    if mem_layer == 'GRU':
+        mem_layer = GRU
+
     # Initialise RNN
     rnn = Sequential()
     # Add LSTM layer:
-    rnn.add(LSTM(units = 45, return_sequences = True, input_shape = (x_training.shape[1], 1)))
+    rnn.add(mem_layer(units = 45, return_sequences = True, input_shape = (x_training.shape[1], 1)))
     # Perform dropout regularisation
     rnn.add(Dropout(0.2))
     # Adding three more LSTM layers with dropout regularization
     # No return sequence on the last one
     for i in [True, True, False]:
-        rnn.add(LSTM(units = 45, return_sequences = i))
+        rnn.add(mem_layer(units = 45, return_sequences = i))
         rnn.add(Dropout(0.2))
     # Add output layer
     rnn.add(Dense(units = 1))
     # Compile RNN
     rnn.compile(optimizer = 'adam', loss = 'mean_squared_error')
+
+    print(rnn.summary())
+
     return rnn
 
 def make_preds(rnn, x_test):
