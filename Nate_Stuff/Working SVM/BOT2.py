@@ -10,7 +10,7 @@ import time
 
 from sklearn.svm import SVC
 from sklearn.cluster import KMeans
-from sklearn.neighbours import NearestNeighbours
+from sklearn.neighbors import NearestNeighbors
 
 from colorama import Fore, Style
 
@@ -66,8 +66,8 @@ def main():
     test = df.copy().iloc[-61:-1]
 
     # Now we are ready to fit the model
-    # fit = SVC(C=1).fit(train[features_list], train['correct call'])
-    fit = KMeans(n_clusters=6).fit(train[features_list], train['correct call'])
+    fit = SVC(C=1).fit(train[features_list], train['correct call'])
+    # fit = KMeans(n_clusters=6).fit(train[features_list], train['correct call'])
     print('MODEL TRAINED!!!')
 
     test['call'] = fit.predict(test[features_list])

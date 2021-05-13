@@ -28,19 +28,20 @@ def main():
     VISION = 20
     epoch_no = 7
     # based on the assumption it is sensible to retrain AI every month
-    test_size = 732
+    test_size = 731
 
     # # second arg is number of hours * ~1400
     # df = get_cc_hour_prices('BTC', 5)
 
     df = pd.read_csv('kraken_btc_usd_hour.csv')
-    offset = 1 * 732  # Use this to rewind an extra month
+    offset = 1 * test_size  # Use this to rewind an extra month
     train_size = 8766 # set the number of hours we want to train the AI on
     df = df[-train_size-test_size-offset:-offset]
     df.reset_index(drop=True, inplace=True)
 
     # Split to training and test data
     training, test, features_list = get_train_test(df, test_size=test_size)
+
     # Get lagged prices
     lagged_features = scale_and_lag(training, test, features_list, VISION)
     # Add lagged prices to features list
@@ -48,15 +49,17 @@ def main():
     # Split to test and train
     x_training, x_test, y_training, y_test = numpy_ify(training, test, features_list)
 
+
     # # MODEL CONSTRUCTION
-    # rnn = make_rnn(x_training)
+    rnn = make_rnn(x_training)
+
     # # TRAINING
-    # rnn.fit(x_training, y_training, epochs = epoch_no)
+    rnn.fit(x_training, y_training, epochs = epoch_no, batch_size=32)
     # # Save rnn
     # model_name = 'v' + str(VISION) + '_t1y_e' + str(epoch_no) + 'March2020'
     # rnn.save('models/' + model_name)
 
-    rnn = tf.keras.models.load_model('models/v' + str(VISION) + '_t1y_e' + str(epoch_no) + 'February2021')
+    # rnn = tf.keras.models.load_model('models/v' + str(VISION) + '_t1y_e' + str(epoch_no) + 'February2021')
 
     # Generating our predicted values
     preds_df = make_preds(rnn, x_test)
