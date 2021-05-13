@@ -1,33 +1,26 @@
 from gym import Env
 from gym.spaces import Discrete, Box
 import numpy as np
-import random
 import yfinance as yf
-import datetime
 import ta
-from keras.models import Sequential, load_model
-from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten, LSTM
-from keras.callbacks import TensorBoard
-from keras.optimizers import Adam
-from collections import deque
-import time
-import tensorflow as tf
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 # Returns ticker_DF (Ticker is another name for stock)
-def yfinance_data(ticker_symbol, start_date, period):  # returns data frame of prices for given ticker
+def yfinance_data(ticker_symbol, start_date, end_date, period):  # returns data frame of prices for given ticker
     ticker_data = yf.Ticker(ticker_symbol)
-    today = datetime.datetime.today().isoformat()
-    ticker_DF = ticker_data.history(perod=period, start=start_date, end=today[:10])
+    ticker_DF = ticker_data.history(perod=period, start=start_date, end=end_date)
     return ticker_DF
 
 
-def create_df(start_date):
-    df = yfinance_data('NKE', start_date, '1d')
+def create_df(start_date, end_date):
+    df = yfinance_data('NKE', start_date, end_date, '1d')
     df = df.drop(['Dividends', 'Stock Splits', 'Open', 'Volume', 'High', 'Low'], axis=1)
     df = df.reset_index(drop=True, inplace=False)
-    df['Macd'] = ta.trend.macd_diff(df['Close'], window_slow=26, window_fast=12, window_sign=9, fillna=False)
-    df['Rsi'] = ta.momentum.rsi(df['Close'], window=14, fillna=False)
+    # df['Macd'] = ta.trend.macd_diff(df['Close'], window_slow=26, window_fast=12, window_sign=9, fillna=False)
+    # df['Rsi'] = ta.momentum.rsi(df['Close'], window=14, fillna=False)
     df = df.dropna()
     return df
 
@@ -46,8 +39,8 @@ def get_discrete_state(state, column_low_val_array, discrete_win_size_array):
     return tuple(map(tuple, discrete_state))
 
 
-class Trading(Env):
-    def __init__(self, df, lookback_win=1, initial_balance=1000):
+class Trading_3_action(Env):
+    def __init__(self, df, lookback_win=5, initial_balance=1000):
         self.df = df.dropna().reset_index()
         self.df = self.df.drop(['index'], axis=1)
         self.lookback_win = lookback_win
@@ -66,6 +59,7 @@ class Trading(Env):
         self.dupe = 0
 
         self.action_space = Discrete(3)  # Actions we can take 0 = hold, 1 = buy, 2 = sell
+        self.action_space_size = 3
         self.state_size = (self.lookback_win, len(df.columns))
 
     def reset(self):
@@ -89,14 +83,13 @@ class Trading(Env):
         self.state = self.df.iloc[self.current_step - self.lookback_win: self.current_step]
         current_price = self.df.loc[self.current_step, 'Close']
 
-        self.prev_net_worth = self.net_worth
         self.net_worth = self.stock_held * current_price + self.balance
-
+        reward = self.net_worth - self.prev_net_worth  # reward calc here as net_worth doesn't change after action
+        self.prev_net_worth = self.net_worth
         # Actions
         if action == 0:
             self.holds += 1
             # calculating reward
-            reward = self.net_worth - self.prev_net_worth
 
         elif action == 1 and self.balance > 0:  # BUY
             self.buys += 1
@@ -105,7 +98,6 @@ class Trading(Env):
             self.stock_held += self.stock_bought
 
             # calculating reward
-            reward = self.prev_net_worth - self.net_worth
             info = 'buy'
 
         elif action == 2 and self.stock_held > 0:  # SELL
@@ -114,12 +106,11 @@ class Trading(Env):
             self.stock_held = 0
 
             # calculating reward
-            reward = self.net_worth - self.prev_net_worth
             info = 'sell'
 
         else:
             self.dupe += 1
-            reward = -10
+
 
         if self.current_step >= self.end_step:  # Check if shower is done
             done = True
@@ -130,8 +121,240 @@ class Trading(Env):
 
         return self.state, reward, done, info  # Return step information
 
-    def render(self):
+    def render(self, close):
         pass
+
+
+class Trading_2_action(Env):
+    def __init__(self, df, lookback_win=30, initial_balance=1000):
+        self.df = df.dropna().reset_index()
+        self.df = self.df.drop(['index'], axis=1)
+        self.lookback_win = lookback_win
+        self.current_step = self.lookback_win  # Initial point
+        self.state = self.df.iloc[
+                     self.current_step - self.lookback_win: self.current_step]  # State is a selection of 10 points
+        self.end_step = len(self.df) - self.lookback_win
+        self.initial_balance = initial_balance
+        self.balance = 0
+        self.stock_held = self.initial_balance / self.df.loc[self.current_step, 'Close']
+        self.net_worth = self.initial_balance
+        self.buys = 0
+        self.sells = 0
+        self.buy_dupe = 0
+        self.sell_dupe = 0
+        self.last_a = -1
+        self.last_price = self.df.loc[self.current_step, 'Close']
+        self.action_space = Discrete(2)  # Actions we can take 0 = buy, 1 = sell
+        self.action_space_size = 2
+        self.state_size = (self.lookback_win, len(df.columns))
+        self.step_list_l = []
+        self.price_list_l = []
+        self.step_list_s = []
+        self.price_list_s = []
+
+    def reset(self):
+        self.current_step = self.lookback_win  # Initial point
+        self.state = self.df.iloc[
+                     self.current_step - self.lookback_win: self.current_step]  # State is a selection of 10 points
+        self.end_step = len(self.df) - self.lookback_win
+        self.balance = 0
+        self.stock_held = self.initial_balance / self.df.loc[self.current_step, 'Close']
+        self.net_worth = self.initial_balance
+        self.buys = 0
+        self.sells = 0
+        self.buy_dupe = 0
+        self.sell_dupe = 0
+        self.last_a = -1  # neither buy or sell
+        self.last_price = self.df.loc[self.current_step, 'Close']
+        self.step_list_l = []
+        self.price_list_l = []
+        self.step_list_s = []
+        self.price_list_s = []
+
+        return self.state
+
+    def step(self, action):
+        self.current_step += 1
+        self.state = self.df.iloc[self.current_step - self.lookback_win: self.current_step]
+        current_price = self.df.loc[self.current_step, 'Close']
+        reward = 0  # Removes warning
+
+        if action == 0 and self.last_a != 0:  # BUY (switching position)
+            reward = self.last_price - current_price
+            self.buys += 1
+            self.balance = self.stock_held * (2 * self.last_price - current_price)
+            self.stock_held = self.balance / current_price
+            self.balance = 0
+            self.net_worth = self.balance + self.stock_held * current_price
+            self.last_price = current_price
+            self.last_a = 0  # change last action to a long
+            self.step_list_l.append(self.current_step)
+            self.price_list_l.append(current_price)
+
+        elif action == 1 and self.last_a != 1:  # SELL (switching position)
+            reward = current_price - self.last_price
+            self.sells += 1
+            self.balance = 0
+            self.net_worth = self.balance + self.stock_held * (2 * self.last_price - current_price)
+            self.last_price = current_price
+            self.last_a = 1  # change last action to a short
+            self.step_list_s.append(self.current_step)
+            self.price_list_s.append(current_price)
+
+        elif action == 0:  # BUY (holding position)
+            reward = current_price - self.last_price
+            self.net_worth = self.balance + self.stock_held * current_price
+            self.buy_dupe += 1
+
+        elif action == 1:  # SELL (holding position)
+            reward = self.last_price - current_price
+            self.net_worth = self.balance + self.stock_held * (2 * self.last_price - current_price)
+            self.sell_dupe += 1
+
+        if self.current_step >= self.end_step:  # Check if shower is done
+            done = True
+        else:
+            done = False
+
+        info = []  # Set info placeholder
+
+        return self.state, reward, done, info  # Return step information
+
+    def render(self, close):
+        # fig = px.line(self.df, x=range(len(self.df)), y="Close", text=self.action_list)
+
+        fig = make_subplots()
+        # Add traces
+        fig.add_trace(
+            go.Scatter(x=list(range(len(self.df))), y=self.df['Close'], mode='lines', name='Close')
+        )
+        fig.add_trace(
+            go.Scatter(x=self.step_list_s, y=self.price_list_s, mode='markers', name='Short')
+        )
+        fig.add_trace(
+            go.Scatter(x=self.step_list_l, y=self.price_list_l, mode='markers', name='Long')
+        )
+        fig.update_yaxes(title_text="Price")
+        fig.update_xaxes(title_text="Days")
+        fig.show()
+
+
+class Trading_2_action_simple(Env):
+    def __init__(self, df, lookback_win=30, initial_balance=1000):
+        self.df = df.dropna().reset_index()
+        self.df = self.df.drop(['index'], axis=1)
+        self.lookback_win = lookback_win
+        self.current_step = self.lookback_win  # Initial point
+        self.current_price = self.df.loc[self.current_step, 'Close']
+        self.state = self.df.iloc[
+                     self.current_step - self.lookback_win: self.current_step]  # State is a selection of 10 points
+        self.end_step = len(self.df) - self.lookback_win
+        self.initial_balance = initial_balance
+        self.balance = 0
+        self.stock_held = self.initial_balance / self.df.loc[self.current_step, 'Close']
+        self.net_worth = self.initial_balance
+        self.prev_net_worth = self.initial_balance
+        self.buys = 0
+        self.sells = 0
+        self.buy_dupe = 0
+        self.sell_dupe = 0
+        self.last_a = -1
+        self.last_price = self.df.loc[self.current_step, 'Close']
+        self.action_space = Discrete(2)  # Actions we can take 0 = buy, 1 = sell
+        self.action_space_size = 2
+        self.state_size = (self.lookback_win, len(df.columns))
+        self.step_list_l = []
+        self.price_list_l = []
+        self.step_list_s = []
+        self.price_list_s = []
+
+    def reset(self):
+        self.current_step = self.lookback_win  # Initial point
+        self.state = self.df.iloc[
+                     self.current_step - self.lookback_win: self.current_step]  # State is a selection of 10 points
+        self.end_step = len(self.df) - self.lookback_win
+        self.current_price = self.df.loc[self.current_step, 'Close']
+        self.balance = 0
+        self.stock_held = self.initial_balance / self.df.loc[self.current_step, 'Close']
+        self.net_worth = self.initial_balance
+        self.prev_net_worth = self.initial_balance
+        self.buys = 0
+        self.sells = 0
+        self.buy_dupe = 0
+        self.sell_dupe = 0
+        self.last_a = -1  # neither buy or sell
+        self.last_price = self.df.loc[self.current_step, 'Close']
+        self.step_list_l = []
+        self.price_list_l = []
+        self.step_list_s = []
+        self.price_list_s = []
+
+        return self.state
+
+    def step(self, action):
+        if action == 0 and self.last_a != 0:  # BUY (switching position)
+            self.buys += 1
+            self.balance = self.stock_held * (2 * self.last_price - self.current_price)
+            self.stock_held = self.balance / self.current_price
+            self.balance = 0
+            self.last_price = self.current_price
+            self.last_a = 0  # change last action to a long
+            self.step_list_l.append(self.current_step)
+            self.price_list_l.append(self.current_price)
+
+        elif action == 1 and self.last_a != 1:  # SELL (switching position)
+            self.sells += 1
+            self.balance = 0
+            self.last_price = self.current_price
+            self.last_a = 1  # change last action to a short
+            self.step_list_s.append(self.current_step)
+            self.price_list_s.append(self.current_price)
+
+        elif action == 0:  # BUY (holding position)
+            self.buy_dupe += 1
+
+        elif action == 1:  # SELL (holding position)
+            self.sell_dupe += 1
+
+        self.current_step += 1
+        self.state = self.df.iloc[self.current_step - self.lookback_win: self.current_step]
+        self.current_price = self.df.loc[self.current_step, 'Close']
+
+        if action == 0:  # BUY (holding position)
+            self.net_worth = self.balance + self.stock_held * self.current_price
+
+        elif action == 1:  # SELL (holding position)
+            self.net_worth = self.balance + self.stock_held * (2 * self.last_price - self.current_price)
+
+        reward = self.net_worth - self.prev_net_worth  # Removes warning
+        self.prev_net_worth = self.net_worth
+
+        if self.current_step >= self.end_step:  # Check if shower is done
+            done = True
+        else:
+            done = False
+
+        info = []  # Set info placeholder
+
+        return self.state, reward, done, info  # Return step information
+
+    def render(self, close):
+        # fig = px.line(self.df, x=range(len(self.df)), y="Close", text=self.action_list)
+
+        fig = make_subplots()
+        # Add traces
+        fig.add_trace(
+            go.Scatter(x=list(range(len(self.df))), y=self.df['Close'], mode='lines', name='Close')
+        )
+        fig.add_trace(
+            go.Scatter(x=self.step_list_s, y=self.price_list_s, mode='markers', name='Short')
+        )
+        fig.add_trace(
+            go.Scatter(x=self.step_list_l, y=self.price_list_l, mode='markers', name='Long')
+        )
+        fig.update_yaxes(title_text="Price")
+        fig.update_xaxes(title_text="Days")
+        fig.show()
 
 
 # def train_q_table():
