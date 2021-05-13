@@ -1,3 +1,3 @@
 # Project
 
-#Using sick algorithms to predicts the movements of the paper
+#Using artificially intelligent algorithms to predict the movements of financial instruments
