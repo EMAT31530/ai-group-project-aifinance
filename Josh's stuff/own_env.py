@@ -3,11 +3,8 @@ import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten
 from keras.optimizers import Adam
-from keras.losses import mean_squared_error
 from collections import deque
-import datetime
 import random
-import tensorflow as tf
 
 
 class DQNAgent:
@@ -112,8 +109,8 @@ class DQNAgent:
                                              "Josh's stuff/reinforcement_models/{}.h5".format(model_name))
 
 
-start_date = '2018-8-1'
-end_date = '2019-1-1'
+start_date = '2019-1-1'
+end_date = '2020-1-1'
 df = create_df(start_date, end_date)
 env = Trading_2_action_simple(df)
 state_shape = env.state_size
@@ -135,42 +132,67 @@ SHOW_EVERY = 5
 reward_arr = []
 
 agent = DQNAgent(env)
-for episode in range(1, episodes+1):
-    ep_start_time = datetime.datetime.now()
-    step = 1
-    current_state = env.reset()
-    done = False
-    temp_reward_tot = 0
+# for episode in range(1, episodes+1):
+#     ep_start_time = datetime.datetime.now()
+#     step = 1
+#     current_state = env.reset()
+#     done = False
+#     temp_reward_tot = 0
+#
+#     while not done:
+#         action = agent.act(current_state)
+#
+#         new_state, reward, done, info = env.step(action)
+#         agent.update_replay_memory((current_state, action, reward, new_state, done))
+#         temp_reward_tot += reward
+#         agent.train(done)
+#         current_state = new_state
+#         step += 1
+#
+#     reward_arr.append(temp_reward_tot)
+#     if episode % SHOW_EVERY == 0:
+#         if env.action_space_size == 3:
+#             print('Episode:{} Net_worth:{} Buys:{} Sells:{} Holds:{} Duplicates:{} Epsilon:{}'.format(episode,
+#                                                                                     env.net_worth, env.buys, env.sells,
+#                                                                                     env.holds, env.dupe, epsilon,
+#                                                                                     ))
+#         else:
+#             print('Episode:{} Net_worth:{} Buys:{} Sells:{} Buy Dupe:{} Sell Dupe:{} Epsilon:{}'.format(episode,
+#                                                                                                                 env.net_worth,
+#                                                                                                                 env.buys,
+#                                                                                                                 env.sells,
+#                                                                                                                 env.buy_dupe,
+#                                                                                                                 env.sell_dupe,
+#                                                                                                                 epsilon,
+#                                                                                                                 ))
+#     print('Episode {} took {}.'.format(episode, datetime.datetime.now() - ep_start_time))
+#
+# agent.render(reward_arr)
+# print('Saving agent')
+# agent.save_model(episodes, update_target_every, minibatch_size, start_date, env.action_space_size, replay_memory_size,
+#                  min_replay_memory_size, env.lookback_win)
 
-    while not done:
-        action = agent.act(current_state)
+agent.load_model('bit_ep400_ute10_mb32_sd2017-1-1_ac2_rms150_mrm100_lw30')
 
-        new_state, reward, done, info = env.step(action)
-        agent.update_replay_memory((current_state, action, reward, new_state, done))
-        temp_reward_tot += reward
-        agent.train(done)
-        current_state = new_state
-        step += 1
+done = False
+step = 1
+current_state = env.reset()
+while not done:
+    action = agent.act(current_state)
 
-    reward_arr.append(temp_reward_tot)
-    if episode % SHOW_EVERY == 0:
-        if env.action_space_size == 3:
-            print('Episode:{} Net_worth:{} Buys:{} Sells:{} Holds:{} Duplicates:{} Epsilon:{}'.format(episode,
-                                                                                    env.net_worth, env.buys, env.sells,
-                                                                                    env.holds, env.dupe, epsilon,
-                                                                                    ))
-        else:
-            print('Episode:{} Net_worth:{} Buys:{} Sells:{} Buy Dupe:{} Sell Dupe:{} Epsilon:{}'.format(episode,
-                                                                                                                env.net_worth,
-                                                                                                                env.buys,
-                                                                                                                env.sells,
-                                                                                                                env.buy_dupe,
-                                                                                                                env.sell_dupe,
-                                                                                                                epsilon,
-                                                                                                                ))
-    print('Episode {} took {}.'.format(episode, datetime.datetime.now() - ep_start_time))
+    new_state, reward, done, info = env.step(action)
 
-agent.render(reward_arr)
-print('Saving agent')
-agent.save_model(episodes, update_target_every, minibatch_size, start_date, env.action_space_size, replay_memory_size,
-                 min_replay_memory_size, env.lookback_win)
+    current_state = new_state
+    step += 1
+
+fig = make_subplots()
+# Add traces
+fig.add_trace(
+    go.Scatter(x=list(range(len(env.net_worth_list))), y=env.net_worth_list, mode='lines', name='Net worth')
+)
+fig.add_trace(
+    go.Scatter(x=list(range(len(env.net_worth_list))), y=env.buynhold, mode='lines', name='Buy and hold')
+)
+fig.update_yaxes(title_text="Price")
+fig.update_xaxes(title_text="Days")
+fig.show()

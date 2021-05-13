@@ -16,7 +16,7 @@ def yfinance_data(ticker_symbol, start_date, end_date, period):  # returns data 
 
 
 def create_df(start_date, end_date):
-    df = yfinance_data('NKE', start_date, end_date, '1d')
+    df = yfinance_data('BTC-USD', start_date, end_date, '1d')
     df = df.drop(['Dividends', 'Stock Splits', 'Open', 'Volume', 'High', 'Low'], axis=1)
     df = df.reset_index(drop=True, inplace=False)
     # df['Macd'] = ta.trend.macd_diff(df['Close'], window_slow=26, window_fast=12, window_sign=9, fillna=False)
@@ -267,6 +267,9 @@ class Trading_2_action_simple(Env):
         self.price_list_l = []
         self.step_list_s = []
         self.price_list_s = []
+        self.net_worth_list = []
+        self.buynhold = []
+        self.starting_bit = self.stock_held
 
     def reset(self):
         self.current_step = self.lookback_win  # Initial point
@@ -288,6 +291,9 @@ class Trading_2_action_simple(Env):
         self.price_list_l = []
         self.step_list_s = []
         self.price_list_s = []
+        self.net_worth_list = []
+        self.buynhold = []
+        self.starting_bit = self.stock_held
 
         return self.state
 
@@ -329,6 +335,8 @@ class Trading_2_action_simple(Env):
         reward = self.net_worth - self.prev_net_worth  # Removes warning
         self.prev_net_worth = self.net_worth
 
+        self.buynhold.append(self.starting_bit * self.current_price)
+        self.net_worth_list.append(self.net_worth)
         if self.current_step >= self.end_step:  # Check if shower is done
             done = True
         else:
